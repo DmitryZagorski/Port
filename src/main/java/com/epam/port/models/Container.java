@@ -26,17 +26,22 @@ public class Container extends Thread {
 
             if (document != null) {
                 Dock dock = port.getDockByNumber(document.getDocumentNumber());
+                sleep(300);
                 dock.addForWait(this);
 
                 Log.info("Container No {} is in dock No {}", containerNumber, dock.getDockNumber());
-                sleep(300);
 
                 if (!inShip) {
                     dock.removeFromWait(this);
-                    Log.info("Container disappeared...");
+                    Log.info("Container No {} moved to customer", this.containerNumber);
                 }
 
             } else {
+
+
+
+
+
                 Log.info("No documents for container No {}", this.containerNumber);
             }
         } catch (InterruptedException e) {

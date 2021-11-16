@@ -5,13 +5,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class Main {
 
     private static Integer count = 1;
-    private static final Logger LOG = LoggerFactory.getLogger(Main.class);;
+    private static final Logger Log = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
 
@@ -22,7 +21,6 @@ public class Main {
         List<Ship> shipList = getShips(port);
 
         shipList.forEach(Thread::start);
-
 
     }
 
@@ -38,13 +36,11 @@ public class Main {
         Document document = null;
         if ((int) (Math.random() * 100) < 80) {
             document = new Document();
-            document.setDateOfExpiration(new Date(new Date().getTime() + 500l + (long) (Math.random() * 1200)));
             document.setDockNumber((int) (Math.random() * 100) < 70 ? 1 : 2);
         }
         Container container = new Container(count, port, document);
         count+=1;
         return container;
-
     }
 
     private static List<Ship> getShips(Port port) {

@@ -33,6 +33,12 @@ public class Ship extends Thread {
             //sleep((long)(Math.random()*500));
             Dock dock = port.getDock();
             Log.info("Ship number {} went to dock number {}", getShipNumber(), dock.getDockNumber());
+
+            containers.forEach(t -> {
+                Integer number = t.getNumber();
+                Log.info("Ship No {} contains container No {} ", getShipNumber() ,number);
+
+            });
             releaseContainers(dock);
 
             prepareToTransport(dock);
@@ -58,14 +64,22 @@ public class Ship extends Thread {
     private void releaseContainers(Dock dock) throws InterruptedException {
         //port.containerLoading(containers);
 
-        containers.forEach(Thread::start);
+        containers.forEach(container -> {
+            container.start();
+            Integer number = container.getNumber();
+            Log.info("Container No {} realised", number);
+        });
         containers.clear();
-        Log.info("Ship number {} released containers", getShipNumber());
+        Log.info("Ship number {} released all containers", getShipNumber());
         sleep((long) (100 + Math.random() * 300));
     }
 
     private void prepareToTransport(Dock dock) throws InterruptedException {
         List<Container> readyContainers = dock.getReadyContainers();
+        readyContainers.forEach(t -> {
+            Integer number = t.getNumber();
+            Log.info("Container No {} is ready", number);
+        });
         sleep((long) (100 + Math.random() * 300));
         readyContainers.forEach(p -> containers.add(p));
         readyContainers.clear();
