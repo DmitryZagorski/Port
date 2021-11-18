@@ -3,117 +3,138 @@ package com.epam.port.models;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 
 public class Ship extends Thread {
 
-    private final static Logger Log = LoggerFactory.getLogger(Ship.class);
+    private Semaphore currentDock;
+    private Port currentPort;
+    private String shipName;
+    private int maxCapacity;
+    private BlockingQueue<Container> containers;
 
-    private Integer shipNumber;
-    private List<Container> containers;
-    private Port port;
-    //private boolean free = true;
-    //private Semaphore semaphore1;
+    private static final Logger LOGGER = LoggerFactory.getLogger(Ship.class);
 
-//    public void setSemaphore(Semaphore semaphore) {
-//        this.semaphore1 = semaphore;
-//    }
+    public Ship(String shipName, int maxCapacity) {
+        this.shipName = shipName;
+        this.maxCapacity = maxCapacity;
+        this.containers = new LinkedBlockingQueue<>();
+    }
 
-    //  ReentrantLock lock = new ReentrantLock();
+    public void setCurrentPort(Port currentPort) {
+        this.currentPort = currentPort;
+    }
 
-    public Ship(Integer shipNumber, List<Container> containers, Port port) {
-        this.shipNumber = shipNumber;
-        this.containers = containers;
-        this.port = port;
+    public void putContainer(Container container) {
+//        if (currentDock == null) {
+//            throw new IllegalStateException("Putting impossible! Because the ship isn't in port!");
+//        }
+        if (containers.size() == maxCapacity) {
+            throw new IndexOutOfBoundsException("Ship full of containers");
+        }
+        try {
+            containers.put(container);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Container unloadContainer() throws InterruptedException {
+        checkingBeforeUnloadContainers();
+
+        return containers.take();
+    }
+
+    public BlockingQueue<Container> unloadAllContainersInPort() throws InterruptedException {
+        checkingBeforeUnloadContainers();
+
+        int availablePlaces = currentPort.getWarehouse().getAvailablePlaces();
+        BlockingQueue<Container> unloadingContainers;
+
+        if (availablePlaces > containers.size()) {
+            unloadingContainers = new LinkedBlockingQueue<>(containers);
+            containers.clear();
+            return unloadingContainers;
+        }
+
+        unloadingContainers = new LinkedBlockingQueue<>();
+
+        for (int i = 0; i < availablePlaces; i++) {
+            unloadingContainers.put(unloadContainer());
+        }
+
+        return unloadingContainers;
+
+    }
+
+    private void checkingBeforeUnloadContainers() {
+//        if (currentDock == null) {
+//            LOGGER.warn("Ship" + this.shipName + " isn't in port!");
+//        }
+        if (containers.isEmpty()) {
+            interrupt();
+            LOGGER.warn("Ship" + this.shipName + " don't have any containers");
+        }
+        if (currentPort.getWarehouse().getAvailablePlaces() == 0) {
+            interrupt();
+            LOGGER.warn(this.shipName + " can't unload containers, because warehouse is full");
+        }
+    }
+
+    public void showAllContainers() {
+        if (containers.isEmpty()) {
+            LOGGER.info("Ship don't have any containers");
+        } else {
+            LOGGER.info(shipName + " has " + getQuantityContainers() + " containers");
+        }
+    }
+
+    public void generateLoadedContainers() {
+        LOGGER.info("Loading " + this.shipName + " by containers");
+        int quantityLoadedContainers = (int) (1 + Math.random() * maxCapacity);
+
+        for (int i = 0; i < quantityLoadedContainers; i++) {
+            containers.add(new Container());
+        }
+
+        LOGGER.info(shipName + " loaded by " + quantityLoadedContainers + " container(s)");
+    }
+
+    public Integer getQuantityContainers() {
+        return containers.size();
+    }
+
+    public Integer getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public void sendToSea(Port port) {
+        setCurrentPort(port);
+        start();
     }
 
     @Override
     public void run() {
         try {
-            //sleep((long)(Math.random()*500));
-            Dock dock = port.getDock();
-            Log.info("Ship number {} went to dock number {}", getShipNumber(), dock.getDockNumber());
-
-            containers.forEach(t -> {
-                Integer number = t.getNumber();
-                Log.info("Ship No {} contains container No {} ", getShipNumber() ,number);
-
-            });
-            releaseContainers(dock);
-
-            prepareToTransport(dock);
-
-            transport(dock);
-
-            Log.info("Ship number {} left dock number {}", getShipNumber(), dock.getDockNumber());
+            Thread.sleep(500);
+            LOGGER.info(shipName + " sailed to Port and waiting for dock");
+            currentDock = currentPort.getDock();
+            currentDock.acquire();
+            LOGGER.info(shipName + " got access to pier of dock");
+            currentPort.unloadAllContainersFromShip(unloadAllContainersInPort());
+            if (this.containers.size() == 0) {
+                LOGGER.info(shipName + " unloaded containers and release dock");
+            } else {
+                LOGGER.info(shipName + " will be waiting for unloading in sea");
+            }
+            currentDock.release();
         } catch (InterruptedException e) {
             interrupt();
-            Log.error("Ship have been crashed", e);
-            throw new RuntimeException();
+            LOGGER.warn("Ship can't sail into port");
+            //e.printStackTrace();
         }
     }
-
-    private void transport(Dock dock) {
-        containers.forEach(container -> {
-            container.inShip();
-            Log.info("Ship number {} has container {}", getShipNumber(), container.getNumber());
-        });
-        dock.release();
-    }
-
-    private void releaseContainers(Dock dock) throws InterruptedException {
-        //port.containerLoading(containers);
-
-        containers.forEach(container -> {
-            container.start();
-            Integer number = container.getNumber();
-            Log.info("Container No {} realised", number);
-        });
-        containers.clear();
-        Log.info("Ship number {} released all containers", getShipNumber());
-        sleep((long) (100 + Math.random() * 300));
-    }
-
-    private void prepareToTransport(Dock dock) throws InterruptedException {
-        List<Container> readyContainers = dock.getReadyContainers();
-        readyContainers.forEach(t -> {
-            Integer number = t.getNumber();
-            Log.info("Container No {} is ready", number);
-        });
-        sleep((long) (100 + Math.random() * 300));
-        readyContainers.forEach(p -> containers.add(p));
-        readyContainers.clear();
-        Log.info("Ship number {} loaded by containers", getShipNumber());
-    }
-
-    public Integer getShipNumber() {
-        return shipNumber;
-    }
-
-    public boolean isFree() {
-        return true;
-    }
-/*
-    public void isBusy() {
-        free = false;
-    }
-
-    public void release() {
-        free = true;
-        semaphore1.release();
-    }
-
-    public void addForWait(Container container, Date timeExpiration) {
-        lock.lock();
-        containers.add(container);
-        lock.unlock();
-    }
-
-    public void removeFromWait(Container container) {
-        lock.lock();
-        containers.remove(container);
-        lock.unlock();
-    }
-*/
 
 }

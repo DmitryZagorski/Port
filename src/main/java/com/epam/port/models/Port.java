@@ -1,51 +1,40 @@
 package com.epam.port.models;
 
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Port {
 
-    private List<Dock> docks;
-    //private List<Ship> ships;
-    // private List<Container> repository = new ArrayList<>();
+    private Semaphore dock;
+    private int warehouseCapacity;
+    private Warehouse warehouse;
 
-    private Semaphore semaphore;
-    //private Semaphore semaphore1;
-    private ReentrantLock lock = new ReentrantLock();
+    public Port(int quantityDocks, int warehouseCapacity) {
 
-
-    public Port(List<Dock> docks/*, List<Ship> ships*/) {
-        this.docks = docks;
-        semaphore = new Semaphore(docks.size());
-        docks.forEach(t -> t.setSemaphore(semaphore));
-
-        // semaphore1 = new Semaphore(ships.size());
+        this.setWarehouseCapacity(warehouseCapacity);
+        dock = new Semaphore(quantityDocks, true);
+        warehouse = new Warehouse(warehouseCapacity);
     }
 
-    public Dock getDock() throws InterruptedException {
-        semaphore.acquire();
-        lock.lock();
-        Dock freeDock = docks.stream().filter(a -> a.isFree()).findFirst().get();
-        freeDock.isBusy();
-        lock.unlock();
-        return freeDock;
+    public Semaphore getDock() {
+        return dock;
     }
 
-  /*  public Ship getShip() throws InterruptedException {
+    public void unloadAllContainersFromShip(BlockingQueue<Container> containers) {
+        //containers.forEach(container -> warehouse.putContainer(container));
+        warehouse.putContainers(containers);
+    }
 
-        //semaphore1.acquire();
-        semaphore.acquire();
-        Ship freeShip = ships.stream().filter(b -> b.isFree()).findFirst().get();
-        freeShip.setSemaphore(semaphore);
-        lock.lock();
-        freeShip.isBusy();
-        lock.unlock();
-        return freeShip;
-    } */
+    public Integer getQuantityContainers(){
+        return warehouse.getQuantityContainers();
+    }
 
-    public Dock getDockByNumber(int number) {
-        return docks.get(number - 1);
+    public void setWarehouseCapacity(int warehouseCapacity) {
+        this.warehouseCapacity = warehouseCapacity;
+    }
+
+    public Warehouse getWarehouse(){
+        return warehouse;
     }
 
 }
